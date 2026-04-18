@@ -6,8 +6,8 @@ import json
 import os
 from datetime import datetime
 
-BOT_TOKEN = '8768938960:AAGe5Pwh32P13XbwzXj7fzl5DVhYJLEIj0w'
-ADMIN_ID = 8434489753
+BOT_TOKEN = 'BOT_TOKEN'
+ADMIN_ID = ADMIN_ID
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
