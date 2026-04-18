@@ -7,7 +7,7 @@ import os
 from datetime import datetime
 
 BOT_TOKEN = 'BOT_TOKEN'
-ADMIN_ID = ADMIN_ID
+ADMIN_ID = 'ADMIN_ID'
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
