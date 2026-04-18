@@ -1,13 +1,26 @@
+import os
 import telebot
 from telebot.types import ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton
 import requests
 import time
 import json
-import os
 from datetime import datetime
 
-BOT_TOKEN = "BOT_TOKEN"
-ADMIN_ID = "ADMIN_ID"
+# ===== ПЕРЕМЕННЫЕ =====
+BOT_TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = int(os.getenv("ADMIN_ID", 0))
+
+# ОТЛАДКА ТОКЕНА (временно, потом удали)
+print(f"[DEBUG] TOKEN: '{BOT_TOKEN}'")
+print(f"[DEBUG] Длина токена: {len(BOT_TOKEN) if BOT_TOKEN else 0}")
+print(f"[DEBUG] Двоеточие есть: {':' in BOT_TOKEN if BOT_TOKEN else False}")
+
+if not BOT_TOKEN:
+    print("❌ ОШИБКА: BOT_TOKEN не найден в переменных!")
+    exit(1)
+if ':' not in BOT_TOKEN:
+    print("❌ ОШИБКА: В токене нет двоеточия! Токен должен быть в формате: 1234567890:AAHdqTcvO1oGjJjF_sVkM9RgXxZqA1bCdE")
+    exit(1)
 
 bot = telebot.TeleBot(BOT_TOKEN)
 
